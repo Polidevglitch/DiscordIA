@@ -21,6 +21,10 @@ Tu utilises un humour toxique, style LoL et autres jeux de puants, sans insulter
 abreges tes phrases pas plus de 50 lignes.
 """
 
+# Mémoire par channel : {channel_id: [messages]}
+conversation_history = {}
+MAX_HISTORY = 20  # nombre de messages max à retenir
+
 intents = discord.Intents.default()
 intents.message_content = True
 client_discord = discord.Client(intents=intents)
@@ -37,6 +41,12 @@ async def on_message(message):
     if message.author == client_discord.user:
         return
 
+    # Commande pour effacer la mémoire
+    if message.content.strip() == "!reset":
+        conversation_history[message.channel.id] = []
+        await message.channel.send("Mémoire effacée. On repart de zéro, noob 🧹")
+        return
+
     if client_discord.user.mentioned_in(message):
         question = message.content
         question = question.replace(f"<@{client_discord.user.id}>", "").replace(f"<@!{client_discord.user.id}>", "").strip()
@@ -45,15 +55,35 @@ async def on_message(message):
             await message.channel.send("Tu m'as ping, mais t'as rien dit… typique d'un joueur Bronze 😅")
             return
 
+        # Initialise l'historique du channel si besoin
+        if message.channel.id not in conversation_history:
+            conversation_history[message.channel.id] = []
+
+        # Ajoute le message de l'utilisateur à l'historique
+        conversation_history[message.channel.id].append({
+            "role": "user",
+            "content": f"{message.author.display_name}: {question}"
+        })
+
+        # Garde seulement les MAX_HISTORY derniers messages
+        if len(conversation_history[message.channel.id]) > MAX_HISTORY:
+            conversation_history[message.channel.id] = conversation_history[message.channel.id][-MAX_HISTORY:]
+
         try:
             response = await groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": personality},
-                    {"role": "user", "content": question}
+                    *conversation_history[message.channel.id]
                 ]
             )
             text = response.choices[0].message.content
+
+            # Ajoute la réponse du bot à l'historique
+            conversation_history[message.channel.id].append({
+                "role": "assistant",
+                "content": text
+            })
 
             for part in split_message(text):
                 await message.channel.send(part)
