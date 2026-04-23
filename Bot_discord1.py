@@ -681,8 +681,7 @@ async def admin(interaction: discord.Interaction):
     if interaction.user.id != ADMIN_ID:
         await interaction.response.send_message("❌ Accès refusé.", ephemeral=True)
         return
-    await interaction.response.send_message("🔐 Panel admin : panel-admin.up.railway.app", ephemeral=True)
-
+    await interaction.response.send_message("🔐 Panel admin : https://panel-admin.up.railway.app", ephemeral=True)
 # ========================
 # LANCEMENT
 # ========================
