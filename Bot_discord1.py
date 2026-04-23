@@ -458,8 +458,10 @@ pollMessages();
 # ========================
 
 async def handle_panel(request):
+    import base64
     auth = request.headers.get('Authorization', '')
-    if auth != f'Basic {PANEL_PASSWORD}':
+    expected = base64.b64encode(f"admin:{PANEL_PASSWORD}".encode()).decode()
+    if auth != f'Basic {expected}':
         return web.Response(
             status=401,
             headers={'WWW-Authenticate': 'Basic realm="Admin Panel"'},
