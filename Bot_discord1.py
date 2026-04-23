@@ -632,7 +632,7 @@ async def on_message(message):
         question = question.replace(f"<@{client_discord.user.id}>", "").replace(f"<@!{client_discord.user.id}>", "").strip()
 
         if not question:
-            await message.channel.send("Tu m'as ping, mais t'as rien dit… typique d'un joueur Bronze 😅")
+            await message.channel.send("Tu m'as ping, mais t'as rien dit… typique d'un joueur Bronze 🤓")
             return
 
         async with message.channel.typing():
@@ -681,7 +681,7 @@ async def admin(interaction: discord.Interaction):
     if interaction.user.id != ADMIN_ID:
         await interaction.response.send_message("❌ Accès refusé.", ephemeral=True)
         return
-    await interaction.response.send_message("🔐 Panel admin : http://localhost:8080", ephemeral=True)
+    await interaction.response.send_message("🔐 Panel admin : panel-admin.up.railway.app", ephemeral=True)
 
 # ========================
 # LANCEMENT
