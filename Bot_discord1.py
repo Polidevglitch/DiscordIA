@@ -645,7 +645,28 @@ async def handle_status(request):
         return web.json_response({"success": True, "message": "Status changé ✅"})
     except Exception as e:
         return web.json_response({"success": False, "message": str(e)})
+async def handle_personality_get(request):
+    return web.json_response({
+        "current": current_personality,
+        "personalities": {k: v for k, v in personalities.items()}
+    })
 
+async def handle_personality_post(request):
+    global current_personality, personalities
+    data = await request.json()
+    if "switch" in data:
+        if data["switch"] in personalities:
+            current_personality = data["switch"]
+            return web.json_response({"success": True, "message": f"Personnalité changée : {current_personality} ✅"})
+    if "name" in data and "text" in data:
+        personalities[data["name"]] = data["text"]
+        return web.json_response({"success": True, "message": f"Personnalité '{data['name']}' sauvegardée ✅"})
+    if "delete" in data:
+        if data["delete"] in personalities and data["delete"] != current_personality:
+            del personalities[data["delete"]]
+            return web.json_response({"success": True, "message": "Personnalité supprimée ✅"})
+        return web.json_response({"success": False, "message": "Impossible de supprimer la personnalité active"})
+    return web.json_response({"success": False, "message": "Requête invalide"})
 #les routes API de personnalité
 async def handle_personality_post(request):
     global personality
