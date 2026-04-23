@@ -20,13 +20,32 @@ if not GROQ_API_KEY or not DISCORD_TOKEN:
 
 groq_client = AsyncGroq(api_key=GROQ_API_KEY)
 
-personality = """
+personalities = {
+    "LoL Arrogant": """
 Tu es un bot avec une personnalité de nerd arrogant et joueur de League of Legends.
 Tu es sarcastique, tu flex tes connaissances, tu te moques méchamment des autres joueurs,
 tu parles comme un gamer qui se croit challenger, mais tu restes arrogant.
-Tu utilises un humour toxique, style LoL et autres jeux de puants,
-sans insulter et tu  abreges tes phrases pas plus de 50 lignes.
+Tu utilises un humour toxique mais léger, style LoL, sans insulter et tu 
+abreges tes phrases pas plus de 50 lignes.
+""",
+    "Assistant Sympa": """
+Tu es un assistant Discord sympa, serviable et bienveillant.
+Tu réponds clairement et simplement, tu aides les gens avec plaisir.
+Tu es positif et encourageant.
+""",
+    "Philosophe": """
+Tu es un philosophe mystérieux qui répond à tout avec des métaphores profondes.
+Tu cites des philosophes, tu poses des questions existentielles,
+tu vois le sens caché derrière chaque question.
+""",
+    "Pirate": """
+Tu es un pirate des mers, tu parles comme un vieux loup de mer.
+Tu utilises des expressions pirates, tu parles de trésors et d'aventures.
+Tu es charismatique et imprévisible.
 """
+}
+
+current_personality = "LoL Arrogant"  # personnalité active par défaut
 
 conversation_history = {}
 blacklist = set()
@@ -58,6 +77,24 @@ async def ask_groq(channel_id, username, question):
         "content": f"{username}: {question}"
     })
 
+    if len(conversation_history[channel_id]) > MAX_HISTORY:
+        conversation_history[channel_id] = conversation_history[channel_id][-MAX_HISTORY:]
+
+    response = await groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": personalities[current_personality]},
+            *conversation_history[channel_id]
+        ]
+    )
+    text = response.choices[0].message.content
+
+    conversation_history[channel_id].append({
+        "role": "assistant",
+        "content": text
+    })
+
+    return text
     if len(conversation_history[channel_id]) > MAX_HISTORY:
         conversation_history[channel_id] = conversation_history[channel_id][-MAX_HISTORY:]
 
@@ -247,15 +284,24 @@ HTML_PANEL = """
 
   <!-- SETTINGS -->
   <div id="tab-settings" class="tab">
-    <h1>⚙️ Paramètres</h1>
+    <h1>⚙️ Personnalités</h1>
+
     <div class="section">
-      <h2>🤖 Personnalité du bot</h2>
-      <textarea id="personality-text" rows="8"></textarea>
-      <button onclick="savePersonality()">Sauvegarder</button>
+      <h2>🎭 Personnalité active</h2>
+      <div id="personality-switcher" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;"></div>
+      <p style="color:#8b949e; font-size:13px;">Personnalité active : <span id="current-personality" style="color:#5865F2; font-weight:bold;"></span></p>
+    </div>
+
+    <div class="section">
+      <h2>✏️ Créer / Modifier une personnalité</h2>
+      <input type="text" id="personality-name" placeholder="Nom de la personnalité">
+      <textarea id="personality-text" rows="8" placeholder="Contenu de la personnalité..."></textarea>
+      <div style="display:flex; gap:10px;">
+        <button onclick="savePersonality()" class="green">Sauvegarder</button>
+        <button onclick="deletePersonality()" class="red">Supprimer</button>
+      </div>
     </div>
   </div>
-
-</div>
 
 <script>
 let currentTab = 'dashboard';
@@ -400,23 +446,63 @@ async function resetAllMemory() {
   showAlert('Toute la mémoire effacée', 'success');
 }
 
-async function savePersonality() {
-  const text = document.getElementById('personality-text').value;
-  const r = await fetch('/api/personality', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ personality: text })
-  });
-  const d = await r.json();
-  showAlert(d.message, d.success ? 'success' : 'error');
-}
-
 async function loadPersonality() {
   const r = await fetch('/api/personality');
   const d = await r.json();
-  document.getElementById('personality-text').value = d.personality;
+  document.getElementById('current-personality').textContent = d.current;
+
+  const switcher = document.getElementById('personality-switcher');
+  switcher.innerHTML = Object.keys(d.personalities).map(name => `
+    <button onclick="switchPersonality('${name}')"
+      style="${name === d.current ? 'background:#238636;' : ''}"
+      onmouseover="previewPersonality('${name}', this.dataset.text)"
+      data-text="${d.personalities[name].replace(/"/g, '&quot;')}"
+    >${name}</button>
+  `).join('');
 }
 
+async function switchPersonality(name) {
+  const r = await fetch('/api/personality', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ switch: name })
+  });
+  const d = await r.json();
+  showAlert(d.message, d.success ? 'success' : 'error');
+  loadPersonality();
+}
+
+function previewPersonality(name, text) {
+  document.getElementById('personality-name').value = name;
+  document.getElementById('personality-text').value = text;
+}
+
+async function savePersonality() {
+  const name = document.getElementById('personality-name').value;
+  const text = document.getElementById('personality-text').value;
+  if (!name || !text) { showAlert('Remplis le nom et le contenu', 'error'); return; }
+  const r = await fetch('/api/personality', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name, text })
+  });
+  const d = await r.json();
+  showAlert(d.message, d.success ? 'success' : 'error');
+  loadPersonality();
+}
+
+async function deletePersonality() {
+  const name = document.getElementById('personality-name').value;
+  if (!name) { showAlert('Sélectionne une personnalité', 'error'); return; }
+  const r = await fetch('/api/personality', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ delete: name })
+  });
+  const d = await r.json();
+  showAlert(d.message, d.success ? 'success' : 'error');
+  loadPersonality();
+}
 function clearFeed() { feedMessages = []; renderFeed(); }
 
 function renderFeed() {
@@ -560,9 +646,7 @@ async def handle_status(request):
     except Exception as e:
         return web.json_response({"success": False, "message": str(e)})
 
-async def handle_personality_get(request):
-    return web.json_response({"personality": personality})
-
+#les routes API de personnalité
 async def handle_personality_post(request):
     global personality
     data = await request.json()
