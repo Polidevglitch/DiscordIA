@@ -13,6 +13,7 @@ load_dotenv(r"C:/Users/benoi/Documents/.env")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 ADMIN_ID = 1314677631609733131
+PANEL_PASSWORD = os.getenv("PANEL_PASSWORD", "admin")
 
 if not GROQ_API_KEY or not DISCORD_TOKEN:
     raise ValueError("Les variables d'environnement GROQ_API_KEY et DISCORD_TOKEN sont requises.")
@@ -457,6 +458,13 @@ pollMessages();
 # ========================
 
 async def handle_panel(request):
+    auth = request.headers.get('Authorization', '')
+    if auth != f'Basic {PANEL_PASSWORD}':
+        return web.Response(
+            status=401,
+            headers={'WWW-Authenticate': 'Basic realm="Admin Panel"'},
+            text='Accès refusé'
+        )
     return web.Response(text=HTML_PANEL, content_type='text/html')
 
 async def handle_stats(request):
