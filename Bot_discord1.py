@@ -1138,13 +1138,30 @@ async def handle_create_subscription(request):
         plan_type = data.get("type", "user")
         price_id = STRIPE_SERVER_PRICE_ID if plan_type == "server" else STRIPE_PRICE_ID
         customer = stripe.Customer.create(metadata={"discord_id": str(data["discord_id"]), "guild_id": data.get("guild_id", ""), "type": plan_type})
+        
+        # Crée un PaymentIntent directement au lieu de passer par l'invoice
         subscription = stripe.Subscription.create(
             customer=customer.id,
             items=[{"price": price_id}],
             payment_behavior="default_incomplete",
-            expand=["latest_invoice.payment_intent"]
+            payment_settings={"save_default_payment_method": "on_subscription"},
+            expand=["latest_invoice", "pending_setup_intent"]
         )
-        return web.json_response({"client_secret": subscription.latest_invoice.payment_intent.client_secret, "subscription_id": subscription.id, "customer_id": customer.id})
+        
+        # Récupère le client_secret depuis le PaymentIntent séparé
+        invoice = subscription.latest_invoice
+        payment_intent = stripe.PaymentIntent.create(
+            amount=invoice.amount_due,
+            currency=invoice.currency,
+            customer=customer.id,
+            metadata={"subscription_id": subscription.id, "discord_id": str(data["discord_id"])}
+        )
+        
+        return web.json_response({
+            "client_secret": payment_intent.client_secret,
+            "subscription_id": subscription.id,
+            "customer_id": customer.id
+        })
     except Exception as e:
         return web.json_response({"error": str(e)}, status=400)
 
