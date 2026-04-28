@@ -1524,18 +1524,6 @@ async def premium_cmd(interaction: discord.Interaction):
     embed.add_field(name="Lien de paiement", value=f"{BASE_URL}/premium")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@client_discord.tree.command(name="monpanel", description="Accéder à ton panel premium")
-async def monpanel(interaction: discord.Interaction):
-    if not is_premium(str(interaction.user.id)):
-        await interaction.response.send_message("❌ Réservé aux membres Premium. Tape /premium !", ephemeral=True)
-        return
-    panel_pwd = get_panel_password(str(interaction.user.id))
-    embed = discord.Embed(title="👑 Ton Panel Premium", color=0xFFD700)
-    embed.add_field(name="🔗 URL", value=f"{BASE_URL}/panel/{interaction.user.id}", inline=False)
-    embed.add_field(name="👤 Login", value=str(interaction.user.id), inline=True)
-    embed.add_field(name="🔑 Mot de passe", value=f"||{panel_pwd}||", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
 @client_discord.tree.command(name="reset", description="Efface la mémoire du bot")
 async def reset(interaction: discord.Interaction):
     conversation_history[interaction.channel_id] = []
@@ -1559,8 +1547,16 @@ async def admin(interaction: discord.Interaction):
         return
     await interaction.response.send_message(f"🔐 Panel admin : {BASE_URL}", ephemeral=True)
 
+# ========================
+# TÂCHE PUB PREMIUM
+# ========================
+
 AD_INTERVAL = int(os.getenv("AD_INTERVAL_HOURS", "1"))
-await asyncio.sleep(AD_INTERVAL * 3600)
+
+async def ad_interval_loop():
+    while True:
+        await asyncio.sleep(AD_INTERVAL * 3600)
+        await send_premium_ad()
 
 # ========================
 # LANCEMENT
@@ -1568,7 +1564,7 @@ await asyncio.sleep(AD_INTERVAL * 3600)
 
 async def main():
     await start_web_server()
-    asyncio.ensure_future(send_premium_ad())
+    asyncio.create_task(ad_interval_loop())
     await client_discord.start(DISCORD_TOKEN)
 
 asyncio.run(main())
