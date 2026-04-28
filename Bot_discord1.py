@@ -501,13 +501,21 @@ button:disabled{opacity:.5;cursor:not-allowed}
   <p style="text-align:center;color:#484f58;font-size:12px">Paiement sécurisé par Stripe • Annulable à tout moment</p>
 </div>
 <script>
-const stripe=Stripe('STRIPE_PUBLIC_KEY_PLACEHOLDER');
-const elements=stripe.elements();
-const cardUser=elements.create('card',{style:{base:{color:'#e6edf3',fontSize:'14px','::placeholder':{color:'#484f58'}}}});
-cardUser.mount('#card-element');
-const cardServer=elements.create('card',{style:{base:{color:'#e6edf3',fontSize:'14px','::placeholder':{color:'#484f58'}}}});
-cardServer.mount('#card-element-server');
+const stripe = Stripe('STRIPE_PUBLIC_KEY_PLACEHOLDER');
 
+// Plan user
+const elementsUser = stripe.elements();
+const cardUser = elementsUser.create('card', {
+  style: { base: { color: '#e6edf3', fontSize: '14px', '::placeholder': { color: '#484f58' } } }
+});
+cardUser.mount('#card-element');
+
+// Plan serveur
+const elementsServer = stripe.elements();
+const cardServer = elementsServer.create('card', {
+  style: { base: { color: '#e6edf3', fontSize: '14px', '::placeholder': { color: '#484f58' } } }
+});
+cardServer.mount('#card-element-server');
 async function pay(type){
   const isServer=type==='server';
   const discordId=document.getElementById(`discord-id-${type}`).value.trim();
