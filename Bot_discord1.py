@@ -1559,6 +1559,9 @@ async def admin(interaction: discord.Interaction):
         return
     await interaction.response.send_message(f"🔐 Panel admin : {BASE_URL}", ephemeral=True)
 
+AD_INTERVAL = int(os.getenv("AD_INTERVAL_HOURS", "1"))
+await asyncio.sleep(AD_INTERVAL * 3600)
+
 # ========================
 # LANCEMENT
 # ========================
